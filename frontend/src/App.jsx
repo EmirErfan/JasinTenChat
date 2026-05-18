@@ -476,7 +476,7 @@ function App() {
               </label>
               <input
                 type="text"
-                placeholder="Enter a display name..."
+                placeholder="Enter a display name (Do not use personally identifiable information)"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && startSearch()}
