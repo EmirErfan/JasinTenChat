@@ -97,6 +97,18 @@ io.on('connection', (socket) => {
     endRoom(data.room); 
   });
 
+  // --- NEW: REPORT USER FEATURE ---
+  socket.on('report_user', (data) => {
+    // 1. Tell the person who clicked "Report" that it was successful
+    socket.emit('chat_ended', "User reported successfully. They have been blocked.");
+    
+    // 2. Tell the OTHER person in the room that they got caught!
+    socket.to(data.room).emit('you_were_reported');
+    
+    // 3. Destroy the chat room
+    endRoom(data.room); 
+  });
+
   // --- NEW: IDLE TIMEOUT FEATURE ---
   socket.on('idle_timeout_end', (data) => {
     io.to(data.room).emit('chat_ended', "Chat ended because someone was idle for too long.");
