@@ -115,6 +115,21 @@ io.on('connection', (socket) => {
     endRoom(data.room);
   });
 
+  // --- NEW: HANDLE PAGE REFRESHES AND TAB CLOSES ---
+  // "disconnecting" fires a millisecond before they actually leave
+  socket.on('disconnecting', () => {
+    // Look at all the rooms this user is currently in
+    for (const room of socket.rooms) {
+      // socket.rooms includes their personal ID, so we ignore that one
+      if (room !== socket.id) {
+        // Tell the remaining partner that this user left!
+        socket.to(room).emit('chat_ended', "Your partner disconnected or refreshed the page.");
+        endRoom(room); // Clean up the 10-minute timer for this room
+      }
+    }
+  });
+  // ------------------------------------------------
+
   socket.on('disconnect', () => {
     console.log('User left:', socket.id);
     if (waitingUser === socket) waitingUser = null;
