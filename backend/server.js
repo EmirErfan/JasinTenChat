@@ -11,7 +11,37 @@ const io = new Server(server, {
   cors: { origin: "*" }
 });
 
-let waitingUser = null; 
+let waitingUser = null;
+// --- NEW: MESSAGE FILTER SYSTEM ---
+// Put the exact words you want to block here. 
+// (We left out casual swear words as you requested!)
+const explicitWords = ['sex', 'noti', 'naughty', 'nude', 'nudes', 'horny'];
+
+function filterMessage(text) {
+  // NEW SAFETY CHECK: If the text is empty or not a string, just return it as a blank string.
+  if (!text || typeof text !== 'string') {
+    return ''; 
+  }
+
+  let safeText = text;
+
+  // 1. Block Links (URLs)
+  const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/ig;
+  safeText = safeText.replace(linkRegex, '[LINK BLOCKED]');
+
+  // 2. Block Phone Numbers 
+  const phoneRegex = /\b\d{8,15}\b/g;
+  safeText = safeText.replace(phoneRegex, '[PHONE BLOCKED]');
+
+  // 3. Block Explicit Words
+  explicitWords.forEach((word) => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi'); 
+    safeText = safeText.replace(regex, '***');
+  });
+
+  return safeText;
+}
+// ----------------------------------
 const roomTimers = {};
 
 io.on('connection', (socket) => {
@@ -33,6 +63,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', (data) => {
+    // Clean the text BEFORE sending it to the partner
+    data.text = filterMessage(data.text);
+    
+    // Now send the cleaned message
     io.to(data.room).emit('receive_message', data);
   });
 
