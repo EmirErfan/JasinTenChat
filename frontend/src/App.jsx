@@ -249,6 +249,14 @@ function App() {
       }, 100);
     });
 
+    socket.on('you_were_reported', () => {
+      setStatus('idle');
+      setRoom(null);
+      const blockUntil = Date.now() + (30 * 60 * 1000);
+      localStorage.setItem('jasin_chat_cooldown', blockUntil);
+      alert("You have been reported by the other user. You are blocked from chatting for 30 minutes.");
+    });
+
     return () => {
       socket.off('matched');
       socket.off('receive_message');
@@ -256,6 +264,7 @@ function App() {
       socket.off('partner_requested_end');
       socket.off('partner_declined_end');
       socket.off('chat_ended');
+      socket.off('you_were_reported');
     };
   }, [username]);
 
@@ -285,7 +294,14 @@ function App() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const startSearch = () => {
-    if (username.trim() === '') return alert('Please enter a name first!');
+    if (username.trim() === '') return alert("Please enter a name first!");
+
+    const cooldownTime = localStorage.getItem('jasin_chat_cooldown');
+    if (cooldownTime && Date.now() < parseInt(cooldownTime)) {
+      const minutesLeft = Math.ceil((parseInt(cooldownTime) - Date.now()) / 60000);
+      return alert(`You have been temporarily blocked for abusive behavior. Try again in ${minutesLeft} minutes.`);
+    }
+
     setStatus('waiting');
     socket.emit('find_match', username);
   };
@@ -310,6 +326,13 @@ function App() {
   const acceptEnd  = () => socket.emit('accept_end', { room });
   const declineEnd = () => { setEndState('none'); socket.emit('decline_end', { room }); };
 
+  const reportUser = () => {
+    const confirmReport = window.confirm("Are you sure you want to report this user and end the chat?");
+    if (confirmReport) {
+      socket.emit('report_user', { room: room });
+    }
+  };
+  
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -321,8 +344,10 @@ function App() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="noise" style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '20px',
+      height: '100dvh', /* Changed to 100dvh for mobile keyboard fix */
+      overflow: 'hidden', /* Prevents outer page scrolling */
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '10px',
       background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(124,106,247,0.18) 0%, transparent 70%), var(--bg)',
     }}>
 
@@ -425,11 +450,12 @@ function App() {
       {status === 'matched' && (
         <div className="card-enter" style={{
           width: '100%', maxWidth: 520,
+          height: '100%', maxHeight: 680, /* Fills container properly on mobile */
           background: 'var(--surface)', borderRadius: 24,
           border: '1px solid var(--border)',
           boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
           display: 'flex', flexDirection: 'column',
-          overflow: 'hidden', height: 'min(680px, 90vh)',
+          overflow: 'hidden',
         }}>
 
           {/* Header */}
@@ -604,16 +630,23 @@ function App() {
             borderTop: '1px solid var(--border)', background: 'var(--surface2)',
             padding: '12px 16px', flexShrink: 0,
           }}>
-            {/* End chat button row */}
+            {/* End chat / Report button row */}
             {endState === 'none' && (
-              <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button onClick={requestEnd} className="btn btn-ghost" style={{
+                  fontSize: 12, color: 'var(--text-muted)', gap: 5,
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface3)',
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  End Chat
+                </button>
+                <button onClick={reportUser} className="btn btn-ghost" style={{
                   fontSize: 12, color: 'var(--danger)', gap: 5,
                   border: '1px solid rgba(224,93,111,0.2)',
                   background: 'rgba(224,93,111,0.06)',
                 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  End Chat
+                  🚨 Report
                 </button>
               </div>
             )}
